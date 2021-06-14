@@ -2,46 +2,9 @@ import requests
 import json
 from enum import Enum
 from typing import Any, List, TypeVar, Callable
-
-#TODO mettre dans un ficher tools_Scripts dans classes
 from classes.coord import Coord
-
-
-def from_list(f: Callable[[Any], TypeVar("T")], x: Any) -> List[TypeVar("T")]:
-    assert isinstance(x, list)
-    return [f(y) for y in x]
-
-#TODO mettre dans un ficher dans classe
-class Direction(Enum):
-    RIGHT = "right"
-    LEFT = "left"
-    UP = "up"
-    DOWN = "down"
-
-class Hint:
-    n: int
-    coord: Coord
-    d: int
-    label: str
-
-    def __init__(self, n: int, x: int, y: int, d: int) -> None:
-
-        self.n = n
-        self.coord = Coord(x,y)
-        self.d = d
-        self.label = Hint.from_id_hint_text(n)
-
-    @staticmethod
-    def from_dict(obj: Any) -> 'Hint':
-        assert isinstance(obj, dict)
-        n = int(obj.get("n"))
-        x = int(obj.get("x"))
-        y = int(obj.get("y"))
-        d = int(obj.get("d"))
-        return Hint(n, x, y, d)
-
-    def from_id_hint_text(id: int) -> str:
-        return {100: 'Citrouille', 101: 'Brouette de citrouilles', 102: 'Râteau', 103: 'Fourche',
+import Levenshtein
+hintlist = {100: 'Citrouille', 101: 'Brouette de citrouilles', 102: 'Râteau', 103: 'Fourche',
                 104: 'Silo vide', 105: 'Caisse', 106: 'Caisse explosive', 107: 'Poubelle', 108: 'Ancre',
                 109: 'Etendoir à linge', 110: 'Banc', 111: 'Seau plein', 112: 'Seau vide', 113: 'Roseaux',
                 114: 'Chariot de mineur', 115: 'Charrette', 116: 'Chariot', 117: 'Chariot de Cawottes',
@@ -263,7 +226,45 @@ class Hint:
                 951: 'Statue fongique', 952: 'Champignon en pierre', 953: 'Os avec un boulet',
                 954: 'Echelle en os', 955: 'Coffre porté par un Pandawa', 956: 'Pompe géante',
                 957: 'Bicyclette', 958: 'Piège à mâchoire', 959: 'Statue avec un trident',
-                960: "Peau d'Ecaflip", 961: 'Peau de Kanigrou', 962: 'Tuyau géant', 99: 'Nichoir de Piou'}[id]
+                960: "Peau d'Ecaflip", 961: 'Peau de Kanigrou', 962: 'Tuyau géant', 99: 'Nichoir de Piou'}
+
+
+def from_list(f: Callable[[Any], TypeVar("T")], x: Any) -> List[TypeVar("T")]:
+    assert isinstance(x, list)
+    return [f(y) for y in x]
+
+
+
+class Direction(Enum):
+    RIGHT = "right"
+    LEFT = "left"
+    UP = "top"
+    DOWN = "bottom"
+
+class Hint:
+    n: int
+    coord: Coord
+    d: int
+    label: str
+
+    def __init__(self, n: int, x: int, y: int, d: int) -> None:
+
+        self.n = n
+        self.coord = Coord(x,y)
+        self.d = d
+        self.label = Hint.from_id_hint_text(n)
+
+    @staticmethod
+    def from_dict(obj: Any) -> 'Hint':
+        assert isinstance(obj, dict)
+        n = int(obj.get("n"))
+        x = int(obj.get("x"))
+        y = int(obj.get("y"))
+        d = int(obj.get("d"))
+        return Hint(n, x, y, d)
+
+    def from_id_hint_text(id: int) -> str:
+        return hintlist[id]
 
 class HintList:
     hints: List[Hint]
@@ -280,13 +281,23 @@ class HintList:
     @staticmethod
     def from_url(url: str) -> 'HintList':
         resp = requests.get(url)
+        print(resp.raw)
         return HintList.from_dict((json.loads(resp.content)))
 
     @staticmethod
-    def from_url_parameters(pos_x: int, pos_y: int,direction: Direction,world: int ) -> 'HintList':
-        url = "https://dofus-map.com/huntTool/getData.php?x="+str(pos_x)+"&y="+str(pos_y)+"&direction="+direction.value+"&world="+str(world)+"&language=fr"
+    def from_url_parameters(coord: Coord,direction: Direction,world: int ) -> 'HintList':
+        url = "https://dofus-map.com/huntTool/getData.php?x="+str(coord.x)+"&y="+str(coord.y)+"&direction="+direction.value+"&world="+str(world)+"&language=fr"
+        print(url)
         return HintList.from_url(url)
 
+    def get_nearest_hint(self,hint_string: str) -> Hint:
+        print(hint_string)
+        bestrate = 0
+        for hint in self.hints:
+            if bestrate < Levenshtein.ratio(hint_string, hint.label):
+                bestresulthint = hint
+                bestrate = Levenshtein.ratio(hint_string, hint.label)
 
+        return bestresulthint
 
 
